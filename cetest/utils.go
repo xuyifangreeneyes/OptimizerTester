@@ -48,7 +48,7 @@ func ExtractEstRows(explainResults [][]string, version string) (float64, error) 
 		panic("TODO")
 	} else if tidb.ToComparableVersion(version) < tidb.ToComparableVersion("v4.0.0") { // v3.x
 		panic("TODO")
-	} else if tidb.ToComparableVersion(version) < tidb.ToComparableVersion("v5.0.0") { // v4.x
+	} else if tidb.ToComparableVersion(version) < tidb.ToComparableVersion("v6.0.0") { // v4.x
 		return extractEstRowsForV4(explainResults)
 	}
 	return 0, nil

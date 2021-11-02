@@ -21,12 +21,13 @@ type DatasetOpt struct {
 }
 
 type Option struct {
-	QueryTypes []QueryType   `toml:"query-types"`
-	Datasets   []DatasetOpt  `toml:"datasets"`
-	Instances  []tidb.Option `toml:"instances"`
-	AnaTables  []string      `toml:"analyze-tables"`
-	ReportDir  string        `toml:"report-dir"`
-	NSamples   int           `toml:"n-samples"`
+	QueryTypes     []QueryType   `toml:"query-types"`
+	Datasets       []DatasetOpt  `toml:"datasets"`
+	Instances      []tidb.Option `toml:"instances"`
+	DropStatsStmts []string      `toml:"drop-stats-stmts"`
+	AnalyzeStmts   []string      `toml:"analyze-stmts"`
+	ReportDir      string        `toml:"report-dir"`
+	NSamples       int           `toml:"n-samples"`
 }
 
 // DecodeOption decodes option content.
@@ -122,9 +123,17 @@ func RunCETestWithConfig(confPath string) error {
 			defer wg.Done()
 			ins := instances[insIdx]
 
+			// drop stats
+			for _, sql := range opt.DropStatsStmts {
+				fmt.Printf("[DROP-STATS] %s\n", sql)
+				if err := ins.Exec(sql); err != nil {
+					panic(fmt.Sprintf("sql=%v, err=%v", sql, err))
+				}
+			}
+
 			// analyze tables
-			for _, tbl := range opt.AnaTables {
-				sql := fmt.Sprintf("ANALYZE TABLE %v", tbl)
+			for _, sql := range opt.AnalyzeStmts {
+				fmt.Printf("[ANALYZE] %s\n", sql)
 				if err := ins.Exec(sql); err != nil {
 					panic(fmt.Sprintf("sql=%v, err=%v", sql, err))
 				}
