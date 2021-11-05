@@ -2,15 +2,15 @@ package cetest
 
 import (
 	"fmt"
+	"github.com/BurntSushi/toml"
+	"github.com/pingcap/errors"
+	"github.com/qw4990/OptimizerTester/tidb"
 	"io/ioutil"
 	"math"
 	"sort"
 	"strings"
 	"sync"
-
-	"github.com/BurntSushi/toml"
-	"github.com/pingcap/errors"
-	"github.com/qw4990/OptimizerTester/tidb"
+	"time"
 )
 
 type DatasetOpt struct {
@@ -26,6 +26,7 @@ type Option struct {
 	Instances      []tidb.Option `toml:"instances"`
 	DropStatsStmts []string      `toml:"drop-stats-stmts"`
 	AnalyzeStmts   []string      `toml:"analyze-stmts"`
+	WarmUpStmts    []string      `toml:"warm-up-stmts"`
 	ReportDir      string        `toml:"report-dir"`
 	NSamples       int           `toml:"n-samples"`
 }
@@ -131,13 +132,26 @@ func RunCETestWithConfig(confPath string) error {
 				}
 			}
 
-			// analyze tables
-			for _, sql := range opt.AnalyzeStmts {
-				fmt.Printf("[ANALYZE] %s\n", sql)
+			// analyze twice
+			// the first analyze gets count and the second analyze uses count to calculate proper sample rate
+			for i := 0; i < 2; i += 1 {
+				for _, sql := range opt.AnalyzeStmts {
+					fmt.Printf("[ANALYZE] %s\n", sql)
+					if err := ins.Exec(sql); err != nil {
+						panic(fmt.Sprintf("sql=%v, err=%v", sql, err))
+					}
+				}
+			}
+
+			for _, sql := range opt.WarmUpStmts {
+				fmt.Printf("[WARM UP] %s\n", sql)
 				if err := ins.Exec(sql); err != nil {
 					panic(fmt.Sprintf("sql=%v, err=%v", sql, err))
 				}
 			}
+
+			fmt.Println("sleep 10 seconds to wait the loading of column stats")
+			time.Sleep(10 * time.Second)
 
 			for dsIdx := range opt.Datasets {
 				ds := datasets[dsIdx]
